@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import com.example.wifimanager.ui.theme.WiFiManagerTheme
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.BroadcastReceiver
 import android.content.Intent
@@ -33,23 +32,26 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.net.wifi.ScanResult
-import android.os.Build
 import android.provider.Settings
-import android.widget.Space
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.wifimanager.data.WifiData
 import com.example.wifimanager.ui.WifiViewModel
@@ -216,17 +218,58 @@ fun WifiListApp(
 ) {
     val wifiState by wifiViewModel.uiState.collectAsState()
 
-    WiFiManagerTheme {
+    val focusManager = LocalFocusManager.current
 
+    WiFiManagerTheme {
         Column {
+            OutlinedTextField(
+                value = wifiState.filterValue,
+                maxLines = 1,
+                label = {
+                    Text(text = "SSIDで絞り込み")
+
+                },
+                onValueChange = {
+                    wifiViewModel.updateFilterValue(it)
+                },
+                trailingIcon = {
+                    if(wifiState.filterValue.isNotEmpty()) {
+                        IconButton(
+                            onClick = {
+                                wifiViewModel.updateFilterValue("")
+                            },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Close",
+                                modifier = Modifier
+                            )
+                        }
+                    }
+                },
+                keyboardOptions = KeyboardOptions.Default.copy(
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        focusManager.clearFocus()   //  フォーカスを外す
+                    }
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            )
             Button(
                 onClick = {
                     wifiViewModel.updateWifiList(
                         wifiScan = scanWiFiFunc
                     )
                 },
+                shape = ShapeDefaults.Small,
                 enabled = !wifiState.isLoading,
-                modifier = modifier.fillMaxWidth()
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
             ) {
                 Text(text = if(wifiState.isLoading)"サーチ中" else "サーチ開始")
             }

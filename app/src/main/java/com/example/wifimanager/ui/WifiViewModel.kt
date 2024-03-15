@@ -9,11 +9,15 @@ import com.example.wifimanager.data.WifiUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
 class WifiViewModel:ViewModel() {
     private val _uiState = MutableStateFlow(WifiUiState())
     val uiState: StateFlow<WifiUiState> = _uiState.asStateFlow()
+
+    //  スキャンしたすべてのデータ
+    private var scanWifiList:MutableList<WifiData>  = mutableListOf()
 
     //  suspendがついている関数は非同期で呼び出すことを強制できる
     fun updateWifiList(wifiScan: suspend ()->List<ScanResult>){
@@ -40,12 +44,36 @@ class WifiViewModel:ViewModel() {
                 )
             }
 
-            //  ロード中フラグをOFF
+            scanWifiList = newWifiList.toMutableList()
+
             //  Wifiリストを設定
             _uiState.value = _uiState.value.copy(
-                wifiList = newWifiList,
                 isLoading = false,
             )
+
+            //  フィルタリングしたデータを設定
+            filterWifiList()
         }
+    }
+
+    private fun filterWifiList(){
+        val filteredList = if(_uiState.value.filterValue.isNotEmpty()) {
+            scanWifiList.filter {
+                it.SSID.contains(_uiState.value.filterValue)
+            }
+        }else{
+            scanWifiList
+        }
+
+        //  ロード中フラグをOFF
+        //  Wifiリストを設定
+        _uiState.value = _uiState.value.copy(
+            wifiList = filteredList,
+        )
+    }
+
+    fun updateFilterValue(updateValue: String){
+        _uiState.value = _uiState.value.copy(filterValue = updateValue)
+        filterWifiList()
     }
 }
