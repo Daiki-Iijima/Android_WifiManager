@@ -174,8 +174,8 @@ fun WiFiInformationCard(
                         .fillMaxWidth()
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
-                    Text(text = "セキュリティ : ",modifier = Modifier.padding(end = 10.dp))
-                    Text(text = wifiData.capabilities,modifier = Modifier.padding(end = 10.dp))
+                    Text(text = "Hz : ",modifier = Modifier.padding(end = 10.dp))
+                    Text(text = wifiData.frequency.toString(),modifier = Modifier.padding(end = 10.dp))
                 }
                 Row(
                     modifier = Modifier
