@@ -35,9 +35,20 @@ import android.net.Uri
 import android.net.wifi.ScanResult
 import android.os.Build
 import android.provider.Settings
+import android.widget.Space
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.wifimanager.data.WifiData
@@ -150,37 +161,71 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WiFiInformationCard(
-    ssidStr:String,
+    modifier: Modifier = Modifier,
+    wifiData:WifiData,
     onClickCard: ()->Unit,
-    modifier: Modifier = Modifier
 ){
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
     Card(modifier = modifier, onClick = onClickCard) {
-        Row (modifier = Modifier.fillMaxSize()){
-            Text(
-                text = "SSID:",
-                modifier = Modifier
-                    .align(Alignment.CenterVertically)
-                    .padding(10.dp),
-                style = MaterialTheme.typography.headlineSmall
-            )
-            Text(
-                text = ssidStr,
-                modifier = Modifier.padding(16.dp),
-                style = MaterialTheme.typography.headlineSmall
-            )
+        Column (
+            modifier = Modifier.animateContentSize()
+        ){
+            Row(modifier = Modifier.fillMaxSize()) {
+                Text(
+                    text = "SSID:",
+                    modifier = Modifier
+                        .align(Alignment.CenterVertically)
+                        .padding(10.dp),
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Text(
+                    text = wifiData.SSID,
+                    modifier = Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(
+                    onClick = { expanded = !expanded },
+                    modifier=Modifier.align(Alignment.CenterVertically)
+                ) {
+                    Icon(
+                        imageVector = if(expanded) Icons.Filled.ExpandLess  else Icons.Filled.ExpandMore,
+                        contentDescription = "詳細表示",
+                    )
+                }
+            }
+            if(expanded) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(text = "セキュリティ : ",modifier = Modifier.padding(end = 10.dp))
+                    Text(text = wifiData.capabilities,modifier = Modifier.padding(end = 10.dp))
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(text = "電波強度 : ",modifier = Modifier.padding(end = 10.dp))
+                    Text(text = wifiData.level.toString(),modifier = Modifier.padding(end = 10.dp))
+                }
+            }
         }
     }
 }
 
 @Composable
 fun WiFiList(
+    modifier: Modifier = Modifier,
     wifiList:List<WifiData>,
-    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
 ){
     LazyColumn(modifier = modifier.fillMaxWidth()) {
         items(wifiList) { wifi ->
             WiFiInformationCard(
-                ssidStr = wifi.SSID,
+                wifiData = wifi,
                 onClickCard = {
                     println("選ばれし!: ${wifi.SSID}")
                 },
@@ -212,7 +257,7 @@ fun WifiListApp(
             ) {
                 Text(text = if(wifiState.isLoading)"サーチ中" else "サーチ開始")
             }
-            WiFiList(wifiState.wifiList)
+            WiFiList(wifiList = wifiState.wifiList)
         }
     }
 }
@@ -231,6 +276,6 @@ fun PreviewWifiList(){
             WifiData(SSID = "test1"),
             WifiData(SSID = "test2"),
             WifiData(SSID = "test3"),
-            )
+        )
     )
 }
