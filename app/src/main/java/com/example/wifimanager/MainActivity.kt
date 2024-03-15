@@ -93,6 +93,24 @@ class MainActivity : ComponentActivity() {
     private suspend fun asyncScanWifiNetworks(context: Context): List<ScanResult> = suspendCoroutine { cont ->
         val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
 
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+        ) {
+            // ユーザーがパーミッションリクエストを一度拒否した場合、説明用のダイアログを表示
+            showPermissionExplanationDialog()
+
+            cont.resume(listOf())
+        } else {
+            // パーミッションリクエストをまだ行っていない、または「今後表示しない」をユーザーが選択していない場合
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                1
+            )
+        }
+
+
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context, intent: Intent) {
                 if (WifiManager.SCAN_RESULTS_AVAILABLE_ACTION == intent.action) {
@@ -109,51 +127,6 @@ class MainActivity : ComponentActivity() {
 
         // スキャンの開始
         wifiManager.startScan()
-    }
-
-    private fun scanWifiNetworks(): List<String> {
-        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-        ) {
-            // ユーザーがパーミッションリクエストを一度拒否した場合、説明用のダイアログを表示
-            showPermissionExplanationDialog()
-
-            return listOf()
-        } else {
-            // パーミッションリクエストをまだ行っていない、または「今後表示しない」をユーザーが選択していない場合
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                1
-            )
-        }
-
-        val results = wifiManager.scanResults
-
-        results.forEach { scanResult ->
-            @Suppress("DEPRECATION")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                // Android 13 (API レベル 34) 以降で推奨される新しい方法を使用
-                println(scanResult.wifiSsid.toString())
-            } else {
-                // それ以前のバージョンでの ScanResult.SSID の使用
-                println(scanResult.SSID)
-            }
-        }
-
-        @Suppress("DEPRECATION")
-        return results.map {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                // Android 13 (API レベル 34) 以降で推奨される新しい方法を使用
-                it.wifiSsid.toString()
-            } else {
-                // それ以前のバージョンでの ScanResult.SSID の使用
-                it.SSID
-            }
-        }.distinct()
     }
 }
 
