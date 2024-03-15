@@ -68,4 +68,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+
+    //  アイコン
+    implementation("androidx.compose.material:material-icons-extended")
 }
