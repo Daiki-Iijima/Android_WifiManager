@@ -18,8 +18,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -29,11 +27,23 @@ import com.example.wifimanager.ui.theme.WiFiManagerTheme
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.content.BroadcastReceiver
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.net.wifi.ScanResult
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.wifimanager.data.WifiData
+import com.example.wifimanager.ui.WifiViewModel
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,7 +58,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             WiFiManagerTheme {
-                WifiListApp(scanWiFiFunc = { scanWifiNetworks() })
+                WifiListApp(scanWiFiFunc = { asyncScanWifiNetworks(context = applicationContext) })
             }
         }
     }
@@ -67,6 +77,27 @@ class MainActivity : ComponentActivity() {
                 dialog.dismiss()
             }
             .show()
+    }
+
+    private suspend fun asyncScanWifiNetworks(context: Context): List<ScanResult> = suspendCoroutine { cont ->
+        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, intent: Intent) {
+                if (WifiManager.SCAN_RESULTS_AVAILABLE_ACTION == intent.action) {
+                    val results = wifiManager.scanResults
+                    context.unregisterReceiver(this) // レシーバーの登録解除
+                    cont.resume(results) // スキャン結果を返す
+                }
+            }
+        }
+
+        // レシーバーの登録
+        val filter = IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)
+        context.registerReceiver(receiver, filter)
+
+        // スキャンの開始
+        wifiManager.startScan()
     }
 
     private fun scanWifiNetworks(): List<String> {
@@ -143,15 +174,15 @@ fun WiFiInformationCard(
 
 @Composable
 fun WiFiList(
-    wifiList:List<String>,
+    wifiList:List<WifiData>,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
 ){
     LazyColumn(modifier = modifier.fillMaxWidth()) {
-        items(wifiList) { ssidStr ->
+        items(wifiList) { wifi ->
             WiFiInformationCard(
-                ssidStr = ssidStr,
+                ssidStr = wifi.SSID,
                 onClickCard = {
-                    println("選ばれし!: $ssidStr")
+                    println("選ばれし!: ${wifi.SSID}")
                 },
                 modifier = Modifier.padding(8.dp)
             )
@@ -160,24 +191,28 @@ fun WiFiList(
 }
 
 @Composable
-fun WifiListApp(scanWiFiFunc: ()->List<String>,modifier: Modifier = Modifier) {
-    val wifiList = remember { mutableStateListOf<String>() }
+fun WifiListApp(
+    modifier: Modifier = Modifier,
+    wifiViewModel: WifiViewModel = viewModel(),
+    scanWiFiFunc: suspend ()->List<ScanResult>,
+) {
+    val wifiState by wifiViewModel.uiState.collectAsState()
 
     WiFiManagerTheme {
 
         Column {
             Button(
                 onClick = {
-                    wifiList.clear()
-                    scanWiFiFunc().forEach { ssid ->
-                        wifiList.add(ssid)
-                    }
+                    wifiViewModel.updateWifiList(
+                        wifiScan = scanWiFiFunc
+                    )
                 },
+                enabled = !wifiState.isLoading,
                 modifier = modifier.fillMaxWidth()
             ) {
-                Text(text = "サーチ開始")
+                Text(text = if(wifiState.isLoading)"サーチ中" else "サーチ開始")
             }
-            WiFiList(wifiList)
+            WiFiList(wifiState.wifiList)
         }
     }
 }
@@ -191,5 +226,11 @@ fun PreviewWifiApp(){
 @Composable
 @Preview(showBackground = true)
 fun PreviewWifiList(){
-    WiFiList( wifiList = listOf("test1","test2","test3") )
+    WiFiList(
+        wifiList = listOf(
+            WifiData(SSID = "test1"),
+            WifiData(SSID = "test2"),
+            WifiData(SSID = "test3"),
+            )
+    )
 }
