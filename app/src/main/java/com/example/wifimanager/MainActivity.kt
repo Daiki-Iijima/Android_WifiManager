@@ -14,6 +14,11 @@ import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -21,13 +26,25 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.wifimanager.ui.WifiDetailScreen
 import com.example.wifimanager.ui.WifiListScreen
 import com.example.wifimanager.ui.WifiViewModel
 import com.example.wifimanager.ui.theme.WiFiManagerTheme
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+
+enum class ScreenType{
+    WifiList,
+    WifiDetail,
+    WifiConnect,
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -108,28 +125,81 @@ fun WifiApp(
     modifier: Modifier = Modifier,
     wifiScanFunc: suspend ()->List<ScanResult>,
     wifiViewModel: WifiViewModel = viewModel(),
+    navController: NavHostController = rememberNavController()
 ){
     Scaffold(
     ) {innerPadding->
-        val wifiState by wifiViewModel.uiState.collectAsState()
 
-        WifiListScreen (
-            modifier = Modifier.padding(innerPadding),
-            wifiList = wifiState.wifiList,
-            filterValue = wifiState.filterValue,
-            isLoading = wifiState.isLoading,
-            onWifiScan = {
-                    wifiViewModel.updateWifiList(
-                        wifiScan = wifiScanFunc
-                    )
-                },
-            onFilterValueChanged = {
-                wifiViewModel.updateFilterValue(it)
+        val wifiState by wifiViewModel.uiState.collectAsState()
+        val animSpec: FiniteAnimationSpec<IntOffset> = tween(500, easing = FastOutSlowInEasing)
+
+        NavHost(
+            navController = navController,
+            startDestination = ScreenType.WifiList.name,
+            enterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { screenWidth -> screenWidth },
+                    animationSpec = animSpec
+                )
             },
-            onFilterClear = {
-                wifiViewModel.updateFilterValue("")
+            popEnterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { screenWidth -> -screenWidth },
+                    animationSpec = animSpec
+                )
             },
-        )
+            exitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { screenWidth -> -screenWidth },
+                    animationSpec = animSpec
+                )
+            },
+            popExitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { screenWidth -> screenWidth },
+                    animationSpec = animSpec
+                )
+            },
+            modifier = Modifier.padding(innerPadding)
+        ){
+
+            composable(route = ScreenType.WifiList.name){
+                WifiListScreen (
+                    wifiList = wifiState.wifiList,
+                    filterValue = wifiState.filterValue,
+                    isLoading = wifiState.isLoading,
+                    onWifiScan = {
+                        wifiViewModel.updateWifiList(
+                            wifiScan = wifiScanFunc
+                        )
+                    },
+                    onFilterValueChanged = {
+                        wifiViewModel.updateFilterValue(it)
+                    },
+                    onFilterClear = {
+                        wifiViewModel.updateFilterValue("")
+                    },
+                    onClickCard = {
+                    },
+                    onLongClickCard = {
+                        wifiViewModel.selectedWifiData(it)
+                        navController.navigate(route=ScreenType.WifiDetail.name)
+                    }
+                )
+            }
+
+            composable(route = ScreenType.WifiDetail.name){
+                WifiDetailScreen(
+                    wifiData = wifiState.selectedWifiData,
+                    onBackClicked = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+        }
+
+
+
     }
 }
 

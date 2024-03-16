@@ -1,6 +1,8 @@
 package com.example.wifimanager.ui
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -38,16 +40,24 @@ import androidx.compose.ui.unit.dp
 import com.example.wifimanager.data.WifiData
 import com.example.wifimanager.ui.theme.WiFiManagerTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun WiFiInformationCard(
     modifier: Modifier = Modifier,
     wifiData:WifiData,
-    onClickCard: ()->Unit,
+    onClickCard: (WifiData)->Unit,
+    onLongClickCard: (WifiData)->Unit,
 ){
     var expanded by rememberSaveable { mutableStateOf(false) }
 
-    Card(modifier = modifier, onClick = onClickCard) {
+    Card(
+        modifier = modifier
+            .combinedClickable(
+                onClick = { onClickCard(wifiData) },
+                onDoubleClick = { /* ダブルクリック時のイベント */ },
+                onLongClick = { onLongClickCard(wifiData) }
+            ),
+    ) {
         Column (
             modifier = Modifier.animateContentSize()
         ){
@@ -101,14 +111,15 @@ fun WiFiInformationCard(
 fun WiFiList(
     modifier: Modifier = Modifier,
     wifiList:List<WifiData>,
+    onClickCard: (WifiData) -> Unit,
+    onLongClickCard: (WifiData) -> Unit
 ){
     LazyColumn(modifier = modifier.fillMaxWidth()) {
         items(wifiList) { wifi ->
             WiFiInformationCard(
                 wifiData = wifi,
-                onClickCard = {
-                    println("選ばれし!: ${wifi.SSID}")
-                },
+                onClickCard = onClickCard,
+                onLongClickCard = onLongClickCard,
                 modifier = Modifier.padding(8.dp)
             )
         }
@@ -124,6 +135,8 @@ fun WifiListScreen(
     isLoading:Boolean,
     onFilterValueChanged: (String)->Unit,
     onFilterClear:()->Unit,
+    onClickCard: (WifiData) -> Unit,
+    onLongClickCard: (WifiData) -> Unit,
 ) {
 
     val focusManager = LocalFocusManager.current
@@ -172,7 +185,11 @@ fun WifiListScreen(
             ) {
                 Text(text = if(isLoading)"サーチ中" else "サーチ開始")
             }
-            WiFiList(wifiList = wifiList)
+            WiFiList(
+                wifiList = wifiList,
+                onClickCard = onClickCard,
+                onLongClickCard = onLongClickCard,
+            )
         }
     }
 }
@@ -191,5 +208,7 @@ fun PreviewScreen(){
         onWifiScan = { },
         onFilterValueChanged = { },
         onFilterClear = { },
+        onClickCard = { },
+        onLongClickCard = { },
     )
 }

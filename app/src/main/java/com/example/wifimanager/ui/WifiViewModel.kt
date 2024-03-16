@@ -75,4 +75,8 @@ class WifiViewModel:ViewModel() {
         _uiState.value = _uiState.value.copy(filterValue = updateValue)
         filterWifiList()
     }
+
+    fun selectedWifiData(wifiData: WifiData){
+        _uiState.value = _uiState.value.copy(selectedWifiData = wifiData)
+    }
 }
