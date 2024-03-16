@@ -129,7 +129,7 @@ fun WifiListScreen(
     val focusManager = LocalFocusManager.current
 
     WiFiManagerTheme {
-        Column {
+        Column(modifier = modifier) {
             OutlinedTextField(
                 value = filterValue,
                 maxLines = 1,
