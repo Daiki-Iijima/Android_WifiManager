@@ -79,4 +79,8 @@ class WifiViewModel:ViewModel() {
     fun selectedWifiData(wifiData: WifiData){
         _uiState.value = _uiState.value.copy(selectedWifiData = wifiData)
     }
+
+    fun setWifiPassword(password:String){
+        _uiState.value = _uiState.value.copy(password = password)
+    }
 }
