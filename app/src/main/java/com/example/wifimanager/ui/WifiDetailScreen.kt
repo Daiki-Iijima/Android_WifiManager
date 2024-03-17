@@ -55,7 +55,7 @@ fun WifiDetailScreen(
 
 @Composable
 @Preview(showBackground = true)
-fun WifiDetailPreview(){
+private fun WifiDetailPreview(){
     // テスト用のデータを作成
     val testWifiData = WifiData(
         BSSID = "00:11:22:33:44:55",
