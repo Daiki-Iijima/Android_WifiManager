@@ -1,60 +1,50 @@
 package com.example.wifimanager
 
-import android.content.Context
-import android.net.wifi.WifiManager
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.core.app.ActivityCompat
-import com.example.wifimanager.ui.theme.WiFiManagerTheme
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.net.wifi.ScanResult
-import android.os.Build
+import android.net.wifi.WifiManager
+import android.os.Bundle
 import android.provider.Settings
-import android.widget.Space
-import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
+import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.wifimanager.data.WifiData
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.wifimanager.ui.WifiDetailScreen
+import com.example.wifimanager.ui.WifiListScreen
 import com.example.wifimanager.ui.WifiViewModel
+import com.example.wifimanager.ui.theme.WiFiManagerTheme
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+
+enum class ScreenType{
+    WifiList,
+    WifiDetail,
+    WifiConnect,
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,7 +59,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             WiFiManagerTheme {
-                WifiListApp(scanWiFiFunc = { asyncScanWifiNetworks(context = applicationContext) })
+                WifiApp(wifiScanFunc = { asyncScanWifiNetworks(context = applicationContext) })
             }
         }
     }
@@ -130,125 +120,93 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WiFiInformationCard(
+fun WifiApp(
     modifier: Modifier = Modifier,
-    wifiData:WifiData,
-    onClickCard: ()->Unit,
-){
-    var expanded by rememberSaveable { mutableStateOf(false) }
-
-    Card(modifier = modifier, onClick = onClickCard) {
-        Column (
-            modifier = Modifier.animateContentSize()
-        ){
-            Row(modifier = Modifier.fillMaxSize()) {
-                Text(
-                    text = "SSID:",
-                    modifier = Modifier
-                        .align(Alignment.CenterVertically)
-                        .padding(10.dp),
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                Text(
-                    text = wifiData.SSID,
-                    modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(
-                    onClick = { expanded = !expanded },
-                    modifier=Modifier.align(Alignment.CenterVertically)
-                ) {
-                    Icon(
-                        imageVector = if(expanded) Icons.Filled.ExpandLess  else Icons.Filled.ExpandMore,
-                        contentDescription = "詳細表示",
-                    )
-                }
-            }
-            if(expanded) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(text = "Hz : ",modifier = Modifier.padding(end = 10.dp))
-                    Text(text = wifiData.frequency.toString(),modifier = Modifier.padding(end = 10.dp))
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(text = "電波強度 : ",modifier = Modifier.padding(end = 10.dp))
-                    Text(text = wifiData.level.toString(),modifier = Modifier.padding(end = 10.dp))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun WiFiList(
-    modifier: Modifier = Modifier,
-    wifiList:List<WifiData>,
-){
-    LazyColumn(modifier = modifier.fillMaxWidth()) {
-        items(wifiList) { wifi ->
-            WiFiInformationCard(
-                wifiData = wifi,
-                onClickCard = {
-                    println("選ばれし!: ${wifi.SSID}")
-                },
-                modifier = Modifier.padding(8.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun WifiListApp(
-    modifier: Modifier = Modifier,
+    wifiScanFunc: suspend ()->List<ScanResult>,
     wifiViewModel: WifiViewModel = viewModel(),
-    scanWiFiFunc: suspend ()->List<ScanResult>,
-) {
-    val wifiState by wifiViewModel.uiState.collectAsState()
+    navController: NavHostController = rememberNavController()
+){
+    Scaffold(
+    ) {innerPadding->
 
-    WiFiManagerTheme {
+        val wifiState by wifiViewModel.uiState.collectAsState()
+        val animSpec: FiniteAnimationSpec<IntOffset> = tween(500, easing = FastOutSlowInEasing)
 
-        Column {
-            Button(
-                onClick = {
-                    wifiViewModel.updateWifiList(
-                        wifiScan = scanWiFiFunc
-                    )
-                },
-                enabled = !wifiState.isLoading,
-                modifier = modifier.fillMaxWidth()
-            ) {
-                Text(text = if(wifiState.isLoading)"サーチ中" else "サーチ開始")
+        NavHost(
+            navController = navController,
+            startDestination = ScreenType.WifiList.name,
+            enterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { screenWidth -> screenWidth },
+                    animationSpec = animSpec
+                )
+            },
+            popEnterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { screenWidth -> -screenWidth },
+                    animationSpec = animSpec
+                )
+            },
+            exitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { screenWidth -> -screenWidth },
+                    animationSpec = animSpec
+                )
+            },
+            popExitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { screenWidth -> screenWidth },
+                    animationSpec = animSpec
+                )
+            },
+            modifier = Modifier.padding(innerPadding)
+        ){
+
+            composable(route = ScreenType.WifiList.name){
+                WifiListScreen (
+                    wifiList = wifiState.wifiList,
+                    filterValue = wifiState.filterValue,
+                    isLoading = wifiState.isLoading,
+                    onWifiScan = {
+                        wifiViewModel.updateWifiList(
+                            wifiScan = wifiScanFunc
+                        )
+                    },
+                    onFilterValueChanged = {
+                        wifiViewModel.updateFilterValue(it)
+                    },
+                    onFilterClear = {
+                        wifiViewModel.updateFilterValue("")
+                    },
+                    onClickCard = {
+                    },
+                    onLongClickCard = {
+                        wifiViewModel.selectedWifiData(it)
+                        navController.navigate(route=ScreenType.WifiDetail.name)
+                    }
+                )
             }
-            WiFiList(wifiList = wifiState.wifiList)
+
+            composable(route = ScreenType.WifiDetail.name){
+                WifiDetailScreen(
+                    wifiData = wifiState.selectedWifiData,
+                    onBackClicked = {
+                        navController.popBackStack()
+                    }
+                )
+            }
         }
+
+
+
     }
 }
+
 
 @Composable
 @Preview(showBackground = true)
 fun PreviewWifiApp(){
-    WifiListApp (scanWiFiFunc = { listOf() })
+    WifiApp(wifiScanFunc = { listOf()})
 }
 
-@Composable
-@Preview(showBackground = true)
-fun PreviewWifiList(){
-    WiFiList(
-        wifiList = listOf(
-            WifiData(SSID = "test1"),
-            WifiData(SSID = "test2"),
-            WifiData(SSID = "test3"),
-        )
-    )
-}
