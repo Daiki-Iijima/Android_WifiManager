@@ -27,7 +27,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
@@ -74,7 +73,7 @@ class MainActivity : ComponentActivity() {
                             AlertDialog.Builder(this)
                                 .setTitle("接続試行中")
                                 .setMessage("Wi-Fiネットワークへの切り替えを試みました。接続状況を確認するか、設定画面で手動でWi-Fiを選択してください。")
-                                .setPositiveButton("Wi-Fi設定") { dialog, which ->
+                                .setPositiveButton("Wi-Fi設定") { _, _ ->
                                     // Wi-Fi設定画面へのインテント
                                     val intent = Intent(Settings.ACTION_WIFI_SETTINGS)
                                     startActivity(intent)
@@ -85,7 +84,7 @@ class MainActivity : ComponentActivity() {
                             AlertDialog.Builder(this)
                                 .setTitle("接続エラー")
                                 .setMessage("Wi-Fi接続に失敗しました。詳細設定を確認してください。")
-                                .setPositiveButton("設定") { dialog, which ->
+                                .setPositiveButton("設定") { _, _ ->
                                     // アプリの設定画面へのインテント
                                     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                                         data = Uri.fromParts("package", packageName, null)
@@ -147,6 +146,13 @@ class MainActivity : ComponentActivity() {
             val receiver = object : BroadcastReceiver() {
                 override fun onReceive(c: Context, intent: Intent) {
                     if (WifiManager.SCAN_RESULTS_AVAILABLE_ACTION == intent.action) {
+                        if (ActivityCompat.checkSelfPermission(
+                                c,
+                                Manifest.permission.ACCESS_FINE_LOCATION
+                            ) != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            return
+                        }
                         val results = wifiManager.scanResults
                         context.unregisterReceiver(this) // レシーバーの登録解除
                         cont.resume(results) // スキャン結果を返す
@@ -175,11 +181,11 @@ class MainActivity : ComponentActivity() {
             .setSsid(connectWifiData.SSID)
             .setWpa2Passphrase(networkPass)
             .setIsAppInteractionRequired(true) // Optional (Needs location permission)
-            .build();
+            .build()
 
-        val wifiManager = context.getSystemService(Context.WIFI_SERVICE) as WifiManager;
+        val wifiManager = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
 
-        val status = wifiManager.addNetworkSuggestions(listOf(suggestion));
+        val status = wifiManager.addNetworkSuggestions(listOf(suggestion))
 
         //  失敗したら
         if (status != WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS) {
@@ -187,16 +193,23 @@ class MainActivity : ComponentActivity() {
         }
 
         // Optional (Wait for post connection broadcast to one of your suggestions)
-        val intentFilter = IntentFilter(WifiManager.ACTION_WIFI_NETWORK_SUGGESTION_POST_CONNECTION);
+        val intentFilter = IntentFilter(WifiManager.ACTION_WIFI_NETWORK_SUGGESTION_POST_CONNECTION)
 
         val broadcastReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 if (!intent.action.equals(WifiManager.ACTION_WIFI_NETWORK_SUGGESTION_POST_CONNECTION)) {
-                    return;
+                    //  つながった場合の処理
+                    //  TODO : つながってもここに来ない場合がある
+                    AlertDialog.Builder(context)
+                        .setTitle("接続成功!")
+                        .setMessage("Wi-Fiの接続に成功しました。")
+                        .setPositiveButton("OK",null)
+                        .show()
+                    return
                 }
             }
-        };
-        context.registerReceiver(broadcastReceiver, intentFilter);
+        }
+        context.registerReceiver(broadcastReceiver, intentFilter)
 
         return true
     }
@@ -209,12 +222,10 @@ fun WifiApp(
     wifiViewModel: WifiViewModel = viewModel(),
     navController: NavHostController = rememberNavController()
 ){
-    Scaffold { innerPadding->
+    Scaffold(modifier = modifier) { innerPadding->
 
         val wifiState by wifiViewModel.uiState.collectAsState()
         val animSpec: FiniteAnimationSpec<IntOffset> = tween(500, easing = FastOutSlowInEasing)
-
-        val scope = rememberCoroutineScope()
 
         NavHost(
             navController = navController,
@@ -295,7 +306,7 @@ fun WifiApp(
                         navController.popBackStack()
                     },
                     onClickConnect = {
-                        val result = wifiConnectFunc(wifiState.selectedWifiData, wifiState.password)
+                        wifiConnectFunc(wifiState.selectedWifiData, wifiState.password)
                     },
                     onPasswordChanged = {
                         wifiViewModel.setWifiPassword(it)
@@ -318,6 +329,6 @@ fun WifiApp(
 fun PreviewWifiApp(){
     WifiApp(
         wifiScanFunc = { listOf()},
-        wifiConnectFunc = {_,_-> false}
+        wifiConnectFunc = {_,_->}
     )
 }

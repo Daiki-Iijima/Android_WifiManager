@@ -123,7 +123,7 @@ private fun WifiConnectPreview(){
     val testWifiData = WifiData(
         BSSID = "00:11:22:33:44:55",
         SSID = "TestNetwork",
-        capabilities = "[WPA2-PSK-CCMP][ESS]",
+        capabilities = "[WPA2-PSK-CAMP][ESS]",
         frequency = 2462,
         level = -45,
         channelWidth = 40,
